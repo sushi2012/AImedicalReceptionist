@@ -1,7 +1,7 @@
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
-from app.agents.receptionist import receptionist
+from app.agents.receptionist import get_receptionist
 
 router = APIRouter(prefix="/receptionist", tags=["AI Receptionist"])
 
@@ -15,9 +15,10 @@ class ChatResponse(BaseModel):
 
 
 @router.post("/chat", response_model=ChatResponse)
-def chat(request: ChatRequest):
+async def chat(request: ChatRequest):
     try:
-        result = receptionist.invoke(
+        receptionist = await get_receptionist()
+        result = await receptionist.ainvoke(
             {
                 "messages": [
                     {
@@ -35,6 +36,8 @@ def chat(request: ChatRequest):
 
         return ChatResponse(reply=reply)
 
+    except HTTPException:
+        raise
     except Exception:
         raise HTTPException(
             status_code=502,

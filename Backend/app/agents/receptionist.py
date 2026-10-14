@@ -1,42 +1,31 @@
 import os
 
 from dotenv import load_dotenv
-from langchain_core.tools import tool
 from langchain_groq import ChatGroq
 from langgraph.prebuilt import create_react_agent
 
-from app.tools.clinic_tools import (
-    get_clinic_information as get_clinic_information_data,
-    search_clinic_faq as search_clinic_faq_data,
-)
+from app.services.mcp_client import get_clinic_tools
 
 load_dotenv()
 
-
-@tool
-def get_clinic_information() -> dict:
-    """Get clinic name, address, phone, working hours, services, and FAQs."""
-    return get_clinic_information_data()
+_receptionist = None
 
 
-@tool
-def search_clinic_faq(question: str) -> dict:
-    """Search clinic FAQs for a patient question, including paraphrases.
-
-    Use this for questions about walk-ins, appointments, cleaning,
-    services, or similar topics even when wording differs from the FAQs.
-    """
-    return search_clinic_faq_data(question)
-
-
-def build_receptionist():
-    """Create the AI receptionist agent."""
+async def build_receptionist():
+    """Create the AI receptionist agent using MCP clinic tools."""
 
     api_key = os.getenv("GROQ_API_KEY")
 
     if not api_key:
         raise RuntimeError(
             "GROQ_API_KEY is missing. Add it to Backend/.env."
+        )
+
+    tools = await get_clinic_tools()
+
+    if not tools:
+        raise RuntimeError(
+            "No tools were loaded from the clinic MCP server."
         )
 
     llm = ChatGroq(
@@ -47,7 +36,7 @@ def build_receptionist():
 
     return create_react_agent(
         model=llm,
-        tools=[get_clinic_information, search_clinic_faq],
+        tools=tools,
         prompt=(
             "You are a polite AI receptionist for Sunshine Dental Clinic. "
             "Always use your tools before answering. "
@@ -67,4 +56,10 @@ def build_receptionist():
     )
 
 
-receptionist = build_receptionist()
+async def get_receptionist():
+    global _receptionist
+
+    if _receptionist is None:
+        _receptionist = await build_receptionist()
+
+    return _receptionist
