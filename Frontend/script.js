@@ -1,5 +1,9 @@
 // --- Config ---
-const API_URL = "http://127.0.0.1:8000/receptionist/chat";
+// In production this points to your Render backend URL.
+// Replace with your actual Render backend URL after deploying the backend service.
+const API_URL = (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1")
+    ? "http://127.0.0.1:8000/receptionist/chat"
+    : "https://aimedicalreceptionist.onrender.com";
 
 // --- DOM ---
 const chatEl = document.getElementById("chat");
