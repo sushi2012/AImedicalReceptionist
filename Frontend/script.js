@@ -73,6 +73,14 @@ function addMessage(text, type) {
     const wrapper = document.createElement("div");
     wrapper.className = `message ${type}`;
 
+    // Add avatar for assistant messages
+    if (type === "assistant") {
+        const avatar = document.createElement("div");
+        avatar.className = "avatar";
+        avatar.textContent = "🤖";
+        wrapper.appendChild(avatar);
+    }
+
     const bubble = document.createElement("div");
     bubble.className = "bubble";
     bubble.textContent = text;
@@ -87,7 +95,17 @@ function showTyping() {
     const typing = document.createElement("div");
     typing.className = "typing";
     typing.id = "typing-indicator";
-    typing.innerHTML = "<span></span><span></span><span></span>";
+
+    const avatar = document.createElement("div");
+    avatar.className = "avatar";
+    avatar.textContent = "🤖";
+
+    const dots = document.createElement("div");
+    dots.className = "typing-dots";
+    dots.innerHTML = "<span></span><span></span><span></span>";
+
+    typing.appendChild(avatar);
+    typing.appendChild(dots);
     chatEl.appendChild(typing);
     scrollToBottom();
 }
