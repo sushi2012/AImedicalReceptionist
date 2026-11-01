@@ -32,7 +32,7 @@ app = FastAPI(
     description="Backend API for a dental clinic AI receptionist",
     version="1.0.0",
     lifespan=lifespan,
-            )
+)
 
 # --- CORS ---
 # Comma-separated origins in .env, e.g. "http://localhost:3000,https://app.example.com"

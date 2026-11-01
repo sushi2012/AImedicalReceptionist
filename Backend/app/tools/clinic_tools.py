@@ -1,4 +1,3 @@
-
 from app.services.clinic_data import CLINIC_INFO
 
 

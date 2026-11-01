@@ -5,7 +5,7 @@ from datetime import datetime, timezone
 
 from bson import ObjectId
 
-from app.database.mongodb import get_database
+from app.database.mongodb import get_database, get_client
 from app.models.appointment import AppointmentCreate
 
 
@@ -62,23 +62,16 @@ async def check_availability(
 
 
 async def create_appointment(appointment_data: dict) -> dict:
-    """Validate and save a new appointment."""
+    """Validate and save a new appointment using a transaction.
 
+    The availability check and insert happen inside the same MongoDB
+    transaction so two concurrent requests cannot both pass the check
+    and double-book the same slot.
+    """
     appointment = AppointmentCreate.model_validate(appointment_data)
 
-    available = await check_availability(
-        start_time=appointment.start_time,
-        end_time=appointment.end_time,
-        doctor_id=appointment.doctor_id,
-    )
-
-    if not available:
-        return {
-            "success": False,
-            "message": "This appointment slot is already booked.",
-        }
-
     collection = get_appointments_collection()
+    mongo_client = get_client()
 
     document = appointment.model_dump()
     document["start_time"] = appointment.start_time.astimezone(timezone.utc)
@@ -86,23 +79,49 @@ async def create_appointment(appointment_data: dict) -> dict:
     document["status"] = "confirmed"
     document["created_at"] = datetime.now(timezone.utc)
 
-    result = await collection.insert_one(document)
+    result_holder: dict = {}
 
-    saved_document = await collection.find_one(
-        {"_id": result.inserted_id}
-    )
+    async def _txn(session):
+        # Check for conflicts inside the transaction
+        conflict_query = {
+            "status": "confirmed",
+            "start_time": {"$lt": document["end_time"]},
+            "end_time": {"$gt": document["start_time"]},
+        }
+        if appointment.doctor_id:
+            conflict_query["doctor_id"] = appointment.doctor_id
 
-    if saved_document is None:
-        return {
-            "success": False,
-            "message": "Appointment was saved but could not be retrieved.",
+        existing = await collection.find_one(
+            conflict_query, session=session
+        )
+
+        if existing:
+            result_holder["result"] = {
+                "success": False,
+                "message": "This appointment slot is already booked.",
+            }
+            return  # abort happens automatically via with_transaction
+
+        result = await collection.insert_one(document, session=session)
+
+        saved = await collection.find_one(
+            {"_id": result.inserted_id}, session=session
+        )
+
+        result_holder["result"] = {
+            "success": True,
+            "message": "Appointment created successfully.",
+            "appointment": serialize_appointment(saved),
         }
 
-    return {
-        "success": True,
-        "message": "Appointment created successfully.",
-        "appointment": serialize_appointment(saved_document),
-    }
+    async with mongo_client.start_session() as session:
+        await session.with_transaction(_txn)
+
+    return result_holder.get("result", {
+        "success": False,
+        "message": "Appointment could not be processed.",
+    })
+
 
 
 async def get_appointment(appointment_id: str) -> dict | None:
@@ -146,7 +165,7 @@ async def cancel_appointment(appointment_id: str) -> dict:
         return {
             "success": False,
             "message": "Invalid appointment ID.",
-              }
+        }
 
     collection = get_appointments_collection()
 

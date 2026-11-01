@@ -1,4 +1,3 @@
-
 import os
 
 from dotenv import load_dotenv
@@ -7,7 +6,7 @@ from pymongo.asynchronous.database import AsyncDatabase
 
 load_dotenv()
 
-MONGODB_URI = os.getenv("MONGODB_URI")
+MONGODB_URL = os.getenv("MONGODB_URI")
 DATABASE_NAME = os.getenv("DATABASE_NAME", "dental_clinic")
 
 client: AsyncMongoClient | None = None
@@ -21,10 +20,10 @@ async def connect_to_mongodb() -> None:
     if client is not None and database is not None:
         return
 
-    if not MONGODB_URI:
-        raise RuntimeError("MONGODB_URI is missing from the environment")
+    if not MONGODB_URL:
+        raise RuntimeError("MONGODB_URL is missing from the environment")
 
-    new_client = AsyncMongoClient(MONGODB_URI)
+    new_client = AsyncMongoClient(MONGODB_URL)
 
     try:
         await new_client.admin.command("ping")
@@ -47,6 +46,17 @@ def get_database() -> AsyncDatabase:
     return database
 
 
+def get_client() -> AsyncMongoClient:
+    """Return the MongoDB client for starting transactions."""
+    if client is None:
+        raise RuntimeError(
+            "MongoDB is not connected. "
+            "Call connect_to_mongodb() first."
+        )
+
+    return client
+
+
 async def close_mongodb_connection() -> None:
     """Close the connection when the application shuts down."""
     global client, database
@@ -56,3 +66,17 @@ async def close_mongodb_connection() -> None:
 
     client = None
     database = None
+
+
+async def check_mongodb_connection() -> bool:
+    """Ping MongoDB to verify the connection is alive."""
+    if client is None:
+        print("MongoDB connection failed: client is not initialised. Call connect_to_mongodb() first.")
+        return False
+    try:
+        await client.admin.command("ping")
+        print("MongoDB connected successfully!")
+        return True
+    except Exception as e:
+        print(f"MongoDB connection failed: {e}")
+        return False

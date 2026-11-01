@@ -1,4 +1,3 @@
-
 from mcp.server.mcpserver import MCPServer as FastMCP
 
 from app.tools.clinic_tools import (

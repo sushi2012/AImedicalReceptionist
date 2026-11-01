@@ -171,8 +171,7 @@ def build_receptionist():
             "ID.\n"
             "Be concise, friendly, and professional."
         ),
-        checkpointer=memory,  
-
+        checkpointer=memory,
     )
 
 
