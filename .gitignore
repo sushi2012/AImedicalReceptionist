@@ -34,9 +34,3 @@ env/
 *.swp
 .DS_Store
 Thumbs.db
-
-# =========================
-# Docker
-# =========================
-Dockerfile
-.dockerignore
