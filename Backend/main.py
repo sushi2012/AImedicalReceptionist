@@ -9,6 +9,7 @@ from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
 
 from app.api.receptionist import router as receptionist_router
+from app.api.voice import router as voice_router
 from app.core.limiter import limiter
 from app.database.mongodb import (
     connect_to_mongodb,
@@ -73,3 +74,4 @@ def health_check():
 
 
 app.include_router(receptionist_router)
+app.include_router(voice_router)
